@@ -1,6 +1,6 @@
 # Copyright 2019 - 2021 Alexander Grund
 # Distributed under the Boost Software License, Version 1.0.
-# (See accompanying file LICENSE or copy at http://boost.org/LICENSE_1_0.txt)
+# https://www.boost.org/LICENSE_1_0.txt
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
     name: Update standalone branch
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup git
         run: |
             git config --global user.email "$GITHUB_ACTOR@users.noreply.github.com"

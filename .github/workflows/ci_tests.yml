@@ -1,6 +1,6 @@
-# Copyright 2019 - 2021 Alexander Grund
+# Copyright 2019 - 2024 Alexander Grund
 # Distributed under the Boost Software License, Version 1.0.
-# (See accompanying file LICENSE or copy at http://boost.org/LICENSE_1_0.txt)
+# https://www.boost.org/LICENSE_1_0.txt
 
 name: CI Tests
 
@@ -10,7 +10,10 @@ on:
     branches:
       - master
       - develop
+      - bugfix/**
       - feature/**
+      - fix/**
+      - pr/**
 
 concurrency:
   group: ${{format('ci_tests{0}:{1}', github.repository, github.ref)}}
@@ -28,27 +31,27 @@ jobs:
         shell: bash
     strategy:
       matrix:
-        os: [ubuntu-18.04, windows-latest]
+        os: [ubuntu-22.04, windows-2019]
         buildType: [Debug, Release]
         standalone: [Boost, Standalone]
         shared_lib: [ON, OFF]
         generator: ['Visual Studio 16 2019', 'MinGW Makefiles', 'Unix Makefiles']
         exclude:
-          - os: ubuntu-18.04
+          - os: ubuntu-22.04
             generator: MinGW Makefiles
-          - os: ubuntu-18.04
+          - os: ubuntu-22.04
             generator: Visual Studio 16 2019
-          - os: ubuntu-18.04
+          - os: ubuntu-22.04
             buildType: Debug
     runs-on: ${{matrix.os}}
     env:
       DEP_DIR: ${{github.workspace}}/dependencies
       BOOST_VERSION: 1.56.0
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Sanity check version
       run: grep -E 'set\(_version [0-9]' CMakeLists.txt
-    - uses: actions/cache@v1
+    - uses: actions/cache@v4
       id: cache-boost
       with:
         path: ${{env.DEP_DIR}}
@@ -61,7 +64,7 @@ jobs:
       if: matrix.standalone == 'Boost'
       run: echo "BOOST_ROOT=${DEP_DIR//\\/\/}/boost_${BOOST_VERSION//./_}" >> $GITHUB_ENV
     # Install Boost
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       if: matrix.standalone == 'Boost' && steps.cache-boost.outputs.cache-hit != 'true'
       with:
         repository: boostorg/boost
@@ -92,19 +95,31 @@ jobs:
         mkdir build
     - name: Configure
       working-directory: build
-      run: cmake -DBoost_DEBUG=ON -DCMAKE_BUILD_TYPE=${{matrix.buildType}} -DBUILD_SHARED_LIBS=${{matrix.shared_lib}} -DCMAKE_INSTALL_PREFIX=~/.local -G "${{matrix.generator}}" -DBoost_NO_BOOST_CMAKE=ON ..
-    - name: Build & Install
-      run: cmake --build build --config ${{matrix.buildType}} --target install
+      run: |
+        extraFlags="-DBoost_DEBUG=ON -DBoost_NO_BOOST_CMAKE=ON -DCMAKE_INSTALL_PREFIX=~/.local"
+        if ! [[ "${{matrix.generator}}" =~ "Visual Studio" ]]; then
+          # Enable warning to find missing defines, especially important for the standalone version
+          extraFlags="$extraFlags -DCMAKE_CXX_FLAGS=-Wundef"
+        fi
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.buildType}} -DBUILD_SHARED_LIBS=${{matrix.shared_lib}} -G "${{matrix.generator}}" $extraFlags ..
+    - name: Build
+      run: cmake --build build --config ${{matrix.buildType}} --target tests
 
     # Run test with both bash and powershell and watch for "Using std::cin" on bash but not on powershell
     - name: Test
       working-directory: build
-      run: ctest --output-on-failure -C ${{matrix.buildType}} --verbose
+      run: |
+        # The bash shell adds an incompatible PATH for MinGW: https://github.com/actions/runner-images/issues/11102
+        [[ "${{runner.os}}" != 'Windows' ]] || export PATH="/c/mingw64/bin:$PATH"
+        ctest --output-on-failure -C ${{matrix.buildType}} --verbose
     - name: Test on PowerShell
       working-directory: build
       shell: powershell
       if: runner.os == 'Windows'
       run: ctest --output-on-failure -C ${{matrix.buildType}} --verbose
+
+    - name: Install
+      run: cmake --build build --config ${{matrix.buildType}} --target install
     - name: Test consumption
       working-directory: build
       run: |
@@ -116,7 +131,7 @@ jobs:
   CreateDocuTest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
       - name: Create documentation
         run: |
             sudo apt-get install -y doxygen
@@ -125,9 +140,9 @@ jobs:
   CreateBoostDocuTest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Fetch Boost.CI
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           repository: boostorg/boost-ci
           ref: master
@@ -144,8 +159,8 @@ jobs:
   CheckFormatting:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: DoozyX/clang-format-lint-action@v0.11
+      - uses: actions/checkout@v4
+      - uses: DoozyX/clang-format-lint-action@v0.18
         with:
           exclude: './doc'
           clangFormatVersion: 10

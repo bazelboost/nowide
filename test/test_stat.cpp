@@ -1,9 +1,8 @@
 //
-//  Copyright (c) 2020 Alexander Grund
+// Copyright (c) 2020 Alexander Grund
 //
-//  Distributed under the Boost Software License, Version 1.0. (See
-//  accompanying file LICENSE or copy at http://www.boost.org/LICENSE_1_0.txt)
-//
+// Distributed under the Boost Software License, Version 1.0.
+// https://www.boost.org/LICENSE_1_0.txt
 
 #include <boost/nowide/stat.hpp>
 
@@ -13,7 +12,7 @@
 #include <errno.h>
 #endif
 
-// coverity [root_function]
+// coverity[root_function]
 void test_main(int, char** argv, char**)
 {
     const std::string prefix = argv[0];
@@ -61,6 +60,10 @@ void test_main(int, char** argv, char**)
         // Simulate passing a struct that is 4 bytes smaller, e.g. if it uses 32 bit time field instead of 64 bit
         // Need to use the detail function directly
         TEST_EQ(boost::nowide::detail::stat(filename.c_str(), &stdStat, sizeof(stdStat) - 4u), EINVAL);
+        TEST_EQ(errno, EINVAL);
+        // Same for our stat_t
+        boost::nowide::stat_t boostStat;
+        TEST_EQ(boost::nowide::detail::stat(filename.c_str(), &boostStat, sizeof(boostStat) - 4u), EINVAL);
         TEST_EQ(errno, EINVAL);
     }
 #endif

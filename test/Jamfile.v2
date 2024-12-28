@@ -1,12 +1,9 @@
-# Boost Nowide Library test Jamfile
-
 # Copyright (c) 2003, 2006 Beman Dawes
 # Copyright (c) 2012 Artyom Beilis (Tonkikh)
-# Copyright (c) 2020-2021 Alexander Grund
+# Copyright (c) 2020-2022 Alexander Grund
 # 
 # Distributed under the Boost Software License, Version 1.0.
-# (See accompanying file LICENSE or www.boost.org/LICENSE_1_0.txt)
-# See library home page at http://www.boost.org/libs/nowide
+# https://www.boost.org/LICENSE_1_0.txt
 
 import testing ;
 import config : requires ;
@@ -23,19 +20,15 @@ rule require-windows ( properties * )
 
 project : requirements
   <library>/boost/nowide//boost_nowide
+  <include>.
   <warnings>pedantic
   <warnings-as-errors>on
-  [ requires
-      cxx11_defaulted_functions
-      cxx11_noexcept
-      cxx11_rvalue_references
-      cxx11_static_assert
-  ]
   [ check-target-builds ../config//cxx11_moveable_fstreams "std::fstream is moveable and swappable" : : <build>no ] 
   ;
 
 lib shell32 ;
 lib file_test_helpers : file_test_helpers.cpp : <link>static -<library>/boost/nowide//boost_nowide ;
+explicit file_test_helpers ;
 
 run test_codecvt.cpp ;
 run test_convert.cpp ;
@@ -64,7 +57,9 @@ run test_stackstring.cpp ;
 run test_stat.cpp ;
 run test_stdio.cpp ;
 run test_system.cpp : : : <define>BOOST_NOWIDE_TEST_USE_NARROW=1 <target-os>windows:<library>shell32 <target-os>darwin,<link>shared:<build>no : test_system_n ;
-run test_system.cpp : : : <define>BOOST_NOWIDE_TEST_USE_NARROW=0 <target-os>windows:<library>shell32 <conditional>@require-windows : test_system_w ;
+run test_system.cpp : : : <define>BOOST_NOWIDE_TEST_USE_NARROW=0 <library>shell32 <conditional>@require-windows : test_system_w ;
+run test_system.cpp : : : <define>BOOST_NOWIDE_TEST_USE_NARROW=0 <define>BOOST_USE_WINDOWS_H <library>shell32 <conditional>@require-windows : test_system_use_windows_h ;
+run test_system.cpp : : : <define>BOOST_NOWIDE_TEST_USE_NARROW=0 <define>BOOST_USE_WINDOWS_H <define>WIN32_LEAN_AND_MEAN <library>shell32 <conditional>@require-windows : test_system_use_windows_h_lean ;
 run test_traits.cpp : : : <define>BOOST_NOWIDE_TEST_BFS_PATH <library>/boost/filesystem//boost_filesystem/<warnings-as-errors>off ;
 
 compile benchmark_fstream.cpp : <define>BOOST_NOWIDE_USE_WIN_FSTREAM=1 [ requires cxx11_hdr_chrono ] ;
